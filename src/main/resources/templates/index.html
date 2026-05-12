@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watts Ahead | Appliance Usage Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<header class="site-header">
+    <div class="header-inner">
+        <div class="logo">
+            <span class="logo-icon">W</span>
+            <div>
+                <span class="logo-name">WATTS AHEAD</span>
+                <span class="logo-sub">Appliance Usage Tracker</span>
+            </div>
+        </div>
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+            <button class="tab-btn" data-tab="usage">Usage Logs</button>
+            <button class="tab-btn" data-tab="appliances">Appliances</button>
+            <button class="tab-btn" data-tab="settings">Settings</button>
+        </nav>
+    </div>
+</header>
+
+<main class="main-content">
+    <div id="toast" class="toast hidden"></div>
+
+    <section id="tab-dashboard" class="tab-panel active">
+        <div class="section-title">
+            <h2>Current Billing Cycle</h2>
+            <span class="section-badge" id="cycleRange">Loading</span>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card accent">
+                <div class="stat-label">Projected Bill</div>
+                <div class="stat-value" id="projectedBill">PHP 0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Current Cost</div>
+                <div class="stat-value" id="totalCost">PHP 0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Current kWh</div>
+                <div class="stat-value" id="totalKwh">0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Usage Logs</div>
+                <div class="stat-value" id="logCount">0</div>
+            </div>
+            <div class="stat-card wide">
+                <div class="stat-label">Days Elapsed</div>
+                <div class="stat-value" id="daysElapsed">0</div>
+            </div>
+        </div>
+
+        <div class="charts-row">
+            <div class="chart-card">
+                <div class="chart-title">Daily kWh Trend</div>
+                <canvas id="dailyChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Appliance Cost Breakdown</div>
+                <canvas id="breakdownChart"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <section id="tab-usage" class="tab-panel hidden">
+        <div class="section-title">
+            <h2>Usage Logs</h2>
+            <button class="btn btn-primary" id="openLogModal">Add Log</button>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Appliance</th>
+                    <th>Hours</th>
+                    <th>Qty</th>
+                    <th>kWh</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody id="logsTbody">
+                <tr><td colspan="7" class="empty-row">No usage logs yet.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="tab-appliances" class="tab-panel hidden">
+        <div class="section-title">
+            <h2>Appliances</h2>
+            <button class="btn btn-primary" id="openApplianceModal">Add Appliance</button>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Watts</th>
+                    <th>Category</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody id="appliancesTbody">
+                <tr><td colspan="5" class="empty-row">No appliances found.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="tab-settings" class="tab-panel hidden">
+        <div class="section-title">
+            <h2>Settings</h2>
+            <span class="section-badge">Bill Calculation</span>
+        </div>
+        <div class="chart-card">
+            <form id="settingsForm" class="modal-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="householdName">Household Name</label>
+                        <input id="householdName" type="text" placeholder="My Household">
+                    </div>
+                    <div class="form-group">
+                        <label for="ratePerKwh">Rate per kWh</label>
+                        <input id="ratePerKwh" type="number" min="0" step="0.01" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="billingCycleStart">Billing Cycle Start Day</label>
+                        <input id="billingCycleStart" type="number" min="1" max="28" step="1" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" type="submit">Save Settings</button>
+                </div>
+            </form>
+        </div>
+    </section>
+</main>
+
+<div id="logModal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Add Usage Log</h3>
+            <button class="modal-close" id="closeLogModal" type="button">x</button>
+        </div>
+        <form id="logForm" class="modal-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="usageDate">Date</label>
+                    <input id="usageDate" type="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="applianceId">Appliance</label>
+                    <select id="applianceId" required></select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="hoursUsed">Hours Used</label>
+                    <input id="hoursUsed" type="number" min="0" max="24" step="0.25" required>
+                </div>
+                <div class="form-group">
+                    <label for="quantity">Quantity</label>
+                    <input id="quantity" type="number" min="1" step="1" value="1" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="logNotes">Notes</label>
+                    <input id="logNotes" type="text" placeholder="Optional">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" id="cancelLogModal" type="button">Cancel</button>
+                <button class="btn btn-primary" type="submit">Save Log</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="applianceModal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="applianceModalTitle">Add Appliance</h3>
+            <button class="modal-close" id="closeApplianceModal" type="button">x</button>
+        </div>
+        <form id="applianceForm" class="modal-form">
+            <input id="applianceEditId" type="hidden">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="applianceName">Name</label>
+                    <input id="applianceName" type="text" required>
+                </div>
+                <div class="form-group">
+                    <label for="applianceWatts">Watts</label>
+                    <input id="applianceWatts" type="number" min="0" step="0.01" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="applianceCategory">Category</label>
+                    <input id="applianceCategory" type="text" placeholder="Kitchen, Cooling, Lighting">
+                </div>
+                <div class="form-group">
+                    <label for="applianceIcon">Display Icon</label>
+                    <input id="applianceIcon" type="text" maxlength="8" placeholder="Plug">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" id="cancelApplianceModal" type="button">Cancel</button>
+                <button class="btn btn-primary" type="submit">Save Appliance</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="modalBackdrop" class="backdrop hidden"></div>
+
+<script>
+const API = '/api';
+const $ = id => document.getElementById(id);
+const money = value => 'PHP ' + Number(value || 0).toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+});
+const number = value => Number(value || 0).toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+});
+
+let appliances = [];
+let dailyChart = null;
+let breakdownChart = null;
+
+function selectTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+    document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+    $('tab-' + tab).classList.remove('hidden');
+
+    if (tab === 'dashboard') loadDashboard();
+    if (tab === 'usage') loadLogs();
+    if (tab === 'appliances') loadAppliances();
+    if (tab === 'settings') loadSettings();
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => selectTab(btn.dataset.tab));
+});
+
+function showToast(message, type = 'success') {
+    const toast = $('toast');
+    toast.textContent = message;
+    toast.className = 'toast ' + type;
+    setTimeout(() => toast.className = 'toast hidden', 3000);
+}
+
+async function api(path, options = {}) {
+    const response = await fetch(API + path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options
+    });
+
+    if (!response.ok) {
+        throw new Error(await response.text() || 'Request failed');
+    }
+
+    return response.status === 204 ? null : response.json();
+}
+
+function today() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function chartOptions() {
+    return {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { ticks: { color: '#8892a4' }, grid: { color: '#1a1e24' } },
+            y: { ticks: { color: '#8892a4' }, grid: { color: '#1a1e24' } }
+        }
+    };
+}
+
+async function loadDashboard() {
+    try {
+        const summary = await api('/summary/cycle');
+        $('cycleRange').textContent = `${summary.cycleStart || summary.from} to ${summary.cycleEnd || summary.to}`;
+        $('projectedBill').textContent = money(summary.projectedBill);
+        $('totalCost').textContent = money(summary.totalCost);
+        $('totalKwh').textContent = number(summary.totalKwh);
+        $('logCount').textContent = summary.logCount || 0;
+        $('daysElapsed').textContent = summary.daysElapsed || 0;
+
+        drawDailyChart(summary.chartLabels || [], summary.chartKwh || []);
+        drawBreakdownChart(summary.breakdown || []);
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
+function drawDailyChart(labels, data) {
+    if (dailyChart) dailyChart.destroy();
+    dailyChart = new Chart($('dailyChart'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                data,
+                borderColor: '#4f9cf9',
+                backgroundColor: 'rgba(79,156,249,0.12)',
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true
+            }]
+        },
+        options: chartOptions()
+    });
+}
+
+function drawBreakdownChart(items) {
+    if (breakdownChart) breakdownChart.destroy();
+    breakdownChart = new Chart($('breakdownChart'), {
+        type: 'bar',
+        data: {
+            labels: items.map(item => item.name),
+            datasets: [{
+                data: items.map(item => item.cost),
+                backgroundColor: 'rgba(245,200,66,0.28)',
+                borderColor: '#f5c842',
+                borderWidth: 1
+            }]
+        },
+        options: chartOptions()
+    });
+}
+
+async function loadAppliances() {
+    appliances = await api('/appliances').catch(error => {
+        showToast(error.message, 'error');
+        return [];
+    });
+
+    renderAppliances();
+    fillApplianceSelect();
+}
+
+function renderAppliances() {
+    const tbody = $('appliancesTbody');
+    if (!appliances.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-row">No appliances found.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = appliances.map(appliance => `
+        <tr>
+            <td>${appliance.icon || ''} ${appliance.name}</td>
+            <td>${number(appliance.watts)} W</td>
+            <td>${appliance.category || '-'}</td>
+            <td>${appliance.isPreset ? 'Preset' : 'Custom'}</td>
+            <td>
+                <button class="btn btn-edit" type="button" onclick="editAppliance(${appliance.id})">Edit</button>
+                ${appliance.isPreset ? '' : `<button class="btn btn-danger" type="button" onclick="deleteAppliance(${appliance.id})">Delete</button>`}
+            </td>
+        </tr>
+    `).join('');
+}
+
+function fillApplianceSelect() {
+    const select = $('applianceId');
+    select.innerHTML = appliances.map(appliance =>
+        `<option value="${appliance.id}">${appliance.name} (${number(appliance.watts)} W)</option>`
+    ).join('');
+}
+
+async function loadLogs() {
+    if (!appliances.length) await loadAppliances();
+
+    const logs = await api('/logs').catch(error => {
+        showToast(error.message, 'error');
+        return [];
+    });
+
+    const tbody = $('logsTbody');
+    if (!logs.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-row">No usage logs yet.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = logs.map(log => `
+        <tr>
+            <td>${log.usageDate}</td>
+            <td>${log.appliance?.icon || ''} ${log.appliance?.name || '-'}</td>
+            <td>${number(log.hoursUsed)}</td>
+            <td>${log.quantity || 1}</td>
+            <td>${number(log.kwhConsumed)} kWh</td>
+            <td>${log.notes || '-'}</td>
+            <td><button class="btn btn-danger" type="button" onclick="deleteLog(${log.id})">Delete</button></td>
+        </tr>
+    `).join('');
+}
+
+async function loadSettings() {
+    try {
+        const settings = await api('/settings');
+        $('householdName').value = settings.householdName || '';
+        $('ratePerKwh').value = settings.ratePerKwh ?? 12.50;
+        $('billingCycleStart').value = settings.billingCycleStart ?? 1;
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
+function openModal(id) {
+    $(id).classList.remove('hidden');
+    $('modalBackdrop').classList.remove('hidden');
+}
+
+function closeModals() {
+    $('logModal').classList.add('hidden');
+    $('applianceModal').classList.add('hidden');
+    $('modalBackdrop').classList.add('hidden');
+}
+
+$('openLogModal').addEventListener('click', async () => {
+    if (!appliances.length) await loadAppliances();
+    $('usageDate').value = today();
+    $('hoursUsed').value = '';
+    $('quantity').value = 1;
+    $('logNotes').value = '';
+    openModal('logModal');
+});
+
+$('closeLogModal').addEventListener('click', closeModals);
+$('cancelLogModal').addEventListener('click', closeModals);
+$('closeApplianceModal').addEventListener('click', closeModals);
+$('cancelApplianceModal').addEventListener('click', closeModals);
+$('modalBackdrop').addEventListener('click', closeModals);
+
+$('openApplianceModal').addEventListener('click', () => {
+    $('applianceModalTitle').textContent = 'Add Appliance';
+    $('applianceEditId').value = '';
+    $('applianceForm').reset();
+    openModal('applianceModal');
+});
+
+$('logForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    try {
+        await api('/logs', {
+            method: 'POST',
+            body: JSON.stringify({
+                applianceId: $('applianceId').value,
+                usageDate: $('usageDate').value,
+                hoursUsed: $('hoursUsed').value,
+                quantity: $('quantity').value,
+                notes: $('logNotes').value
+            })
+        });
+        closeModals();
+        showToast('Usage log saved.');
+        loadLogs();
+        loadDashboard();
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+});
+
+$('applianceForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const id = $('applianceEditId').value;
+    try {
+        await api(id ? `/appliances/${id}` : '/appliances', {
+            method: id ? 'PUT' : 'POST',
+            body: JSON.stringify({
+                name: $('applianceName').value,
+                watts: $('applianceWatts').value,
+                category: $('applianceCategory').value,
+                icon: $('applianceIcon').value || 'Plug'
+            })
+        });
+        closeModals();
+        showToast('Appliance saved.');
+        await loadAppliances();
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+});
+
+$('settingsForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    try {
+        await api('/settings', {
+            method: 'PUT',
+            body: JSON.stringify({
+                householdName: $('householdName').value,
+                ratePerKwh: $('ratePerKwh').value,
+                billingCycleStart: $('billingCycleStart').value
+            })
+        });
+        showToast('Settings saved.');
+        loadDashboard();
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+});
+
+window.editAppliance = function(id) {
+    const appliance = appliances.find(item => item.id === id);
+    if (!appliance) return;
+
+    $('applianceModalTitle').textContent = 'Edit Appliance';
+    $('applianceEditId').value = appliance.id;
+    $('applianceName').value = appliance.name || '';
+    $('applianceWatts').value = appliance.watts || 0;
+    $('applianceCategory').value = appliance.category || '';
+    $('applianceIcon').value = appliance.icon || '';
+    openModal('applianceModal');
+};
+
+window.deleteAppliance = async function(id) {
+    if (!confirm('Delete this appliance?')) return;
+    try {
+        await api(`/appliances/${id}`, { method: 'DELETE' });
+        showToast('Appliance deleted.', 'error');
+        await loadAppliances();
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+};
+
+window.deleteLog = async function(id) {
+    if (!confirm('Delete this usage log?')) return;
+    try {
+        await api(`/logs/${id}`, { method: 'DELETE' });
+        showToast('Usage log deleted.', 'error');
+        loadLogs();
+        loadDashboard();
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+};
+
+loadAppliances().then(loadDashboard);
+</script>
+</body>
+</html>
