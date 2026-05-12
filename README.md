@@ -97,14 +97,14 @@ TOTAL: ₱3,182.20
 - MySQL 8+ (running with root/root credentials as configured)
 
 ### 1. Database Setup
-The app will automatically create tables on first run. Ensure MySQL is running:
+Ensure MySQL is running and verify the database:
 
 ```sql
 -- Verify database exists (or it will be created automatically)
 CREATE DATABASE IF NOT EXISTS electricity_db;
 ```
 
-### 2. Configure Database Connection (if needed)
+### 2. Configure Database Connection
 Edit `src/main/resources/application.properties`:
 ```properties
 spring.datasource.url=jdbc:mysql://localhost:3306/electricity_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
@@ -239,7 +239,7 @@ Comprehensive guides are included in the project:
 1. Go to **Readings** tab
 2. Click **"+ Add Reading"**
 3. Enter your meter reading date
-4. Enter **Current Meter Reading** (number on your meter right now)
+4. Enter **Current Meter Reading** (number on your meter)
 5. **Previous Reading** auto-fills from your last entry
 6. System calculates consumption automatically
 7. Click **"Save Reading"**
@@ -360,4 +360,3 @@ This project is for tracking electricity bills based on Meralco (Manila Electric
 ---
 
 *Watts Ahead - Smart Electricity Tracking for the Philippines* ⚡
-#
