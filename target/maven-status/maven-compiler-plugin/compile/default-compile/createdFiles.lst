@@ -1,2 +1,10 @@
 com\electricity\bill\controller\WebController.class
 com\electricity\bill\BillProjectionApplication.class
+com\electricity\bill\controller\ApplianceController.class
+com\electricity\bill\model\AppSettings.class
+com\electricity\bill\repository\SettingsRepository.class
+com\electricity\bill\model\UsageLog.class
+com\electricity\bill\service\ApplianceService.class
+com\electricity\bill\repository\UsageLogRepository.class
+com\electricity\bill\model\Appliance.class
+com\electricity\bill\repository\ApplianceRepository.class
