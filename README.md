@@ -1,31 +1,19 @@
-# ⚡ Watts Ahead — Meralco Bill Projector
+# ⚡ Watts Ahead — Household Electricity Bill Tracker
 
-A Spring Boot + MySQL + HTML/CSS/JS web application for tracking electricity meter readings and projecting future bills based on **accurate Meralco (Manila Electric Company) bill computation methodology**.
-
----
-
-## 🎯 Features
-
-✅ **Accurate Meralco Calculation** - Implements official Meralco billing formula  
-✅ **Meter Reading Tracking** - Record current and previous meter readings  
-✅ **Bill Breakdown** - See all charge components (Generation, Distribution, Transmission, System Loss, Taxes)  
-✅ **Bill Projection** - Forecast future bills using linear regression on historical data  
-✅ **Educational Reference** - Built-in guide explaining how Meralco bills are calculated  
-✅ **Real-Time Preview** - Live bill calculation as you enter data  
-✅ **Responsive Design** - Works on desktop, tablet, and mobile  
+A Spring Boot + MySQL + HTML/CSS/JS web app that lets you track electricity consumption **by appliance**, log daily usage hours, and compute your running bill — broken down per device.
 
 ---
 
 ## 🛠 Tech Stack
 
-| Layer     | Technology                     |
-|-----------|-------------------------------|
-| Backend   | Java 17, Spring Boot 3.2       |
-| Database  | MySQL 8+                       |
-| ORM       | Spring Data JPA / Hibernate    |
-| Frontend  | HTML5, CSS3, Vanilla JS        |
-| Charting  | Chart.js 4                     |
-| Templates | Thymeleaf                      |
+| Layer      | Technology                        |
+|------------|-----------------------------------|
+| Backend    | Java 17, Spring Boot 3.2          |
+| Database   | MySQL 8+                          |
+| ORM        | Spring Data JPA / Hibernate       |
+| Frontend   | HTML5, CSS3, Vanilla JS           |
+| Charting   | Chart.js 4                        |
+| Templates  | Thymeleaf                         |
 
 ---
 
@@ -34,57 +22,28 @@ A Spring Boot + MySQL + HTML/CSS/JS web application for tracking electricity met
 ```
 electricity-bill-app/
 ├── pom.xml
-├── README.md
-├── MERALCO_BILL_COMPUTATION_GUIDE.md    # Complete billing methodology
-├── USER_GUIDE.md                        # Quick reference for users
-├── IMPLEMENTATION_SUMMARY.md            # Technical changes
 └── src/main/
     ├── java/com/electricity/bill/
-    │   ├── BillProjectionApplication.java       # Main entry point
+    │   ├── BillProjectionApplication.java        # Entry point
     │   ├── controller/
-    │   │   ├── WebController.java               # Serves HTML page
-    │   │   └── ElectricityController.java       # REST API
+    │   │   ├── WebController.java                # Serves HTML page
+    │   │   └── ApplianceController.java          # REST API
     │   ├── model/
-    │   │   ├── ElectricityReading.java          # JPA Entity (Meter readings)
-    │   │   └── BillProjection.java              # Projection DTO
+    │   │   ├── Appliance.java                    # Appliance entity (name, watts, icon)
+    │   │   ├── UsageLog.java                     # Daily usage entry (hours, quantity)
+    │   │   └── AppSettings.java                  # Rate per kWh, billing cycle, household name
     │   ├── repository/
-    │   │   └── ElectricityReadingRepository.java
+    │   │   ├── ApplianceRepository.java
+    │   │   ├── UsageLogRepository.java
+    │   │   └── SettingsRepository.java
     │   └── service/
-    │       └── ElectricityService.java          # Meralco calculations + Projection
+    │       └── ApplianceService.java             # Business logic, billing, presets seed
     └── resources/
         ├── application.properties
-        ├── templates/index.html                 # Main UI with Reference tab
+        ├── templates/index.html                  # Main UI
         └── static/
             ├── css/style.css
             └── js/app.js
-```
-
----
-
-## 🧮 Meralco Bill Calculation
-
-The app implements Meralco's official billing methodology:
-
-```
-CONSUMPTION = Current Meter Reading - Previous Meter Reading
-
-BASE COST = Consumption × (
-    Generation (₱8.54/kWh) +
-    Distribution (₱1.29/kWh) +
-    Transmission (₱0.85/kWh) +
-    System Loss (₱0.58/kWh)
-)
-
-TAXES & CHARGES = Base Cost × 12% (VAT + Universal Charges)
-
-TOTAL BILL = Base Cost + Taxes & Charges
-```
-
-**Example:** For 250 kWh consumption
-```
-Base Cost: 250 × ₱11.37 = ₱2,841.25
-Taxes: ₱2,841.25 × 0.12 = ₱340.95
-TOTAL: ₱3,182.20
 ```
 
 ---
@@ -94,18 +53,23 @@ TOTAL: ₱3,182.20
 ### Prerequisites
 - Java 17+
 - Maven 3.6+
-- MySQL 8+ (running with root/root credentials as configured)
+- MySQL 8+
 
-### 1. Database Setup
-Ensure MySQL is running and verify the database:
+### 1. Create MySQL Database
+
+Run this in MySQL Workbench or the MySQL CLI:
 
 ```sql
--- Verify database exists (or it will be created automatically)
 CREATE DATABASE IF NOT EXISTS electricity_db;
+CREATE USER IF NOT EXISTS 'root'@'localhost' IDENTIFIED BY 'root';
+GRANT ALL PRIVILEGES ON electricity_db.* TO 'root'@'localhost';
+FLUSH PRIVILEGES;
 ```
 
 ### 2. Configure Database Connection
+
 Edit `src/main/resources/application.properties`:
+
 ```properties
 spring.datasource.url=jdbc:mysql://localhost:3306/electricity_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
 spring.datasource.username=root
@@ -113,250 +77,150 @@ spring.datasource.password=root
 ```
 
 ### 3. Build & Run
+
 ```bash
 cd electricity-bill-app
-mvn clean compile
 mvn spring-boot:run
 ```
 
 ### 4. Open the App
+
 Visit: **http://localhost:8080**
 
-The application will:
-- Automatically create/update the `electricity_readings` table
-- Load the dashboard with existing readings
-- Allow you to add new meter readings
+> Tables are auto-created on first run. 25 preset appliances are seeded automatically.
 
 ---
 
-## 📱 User Interface
+## 🔌 How It Works
 
-### **Dashboard Tab**
-- View summary statistics (Total readings, Average bill, Highest/Lowest bills)
-- See consumption and bill trends with interactive charts
-- Monitor your usage pattern
+### Step 1 — Appliances
+Go to the **Appliances** tab. You'll find 25 built-in presets (aircon, ref, TV, etc.) ready to use. You can also add your own custom appliances with a name, wattage, and icon.
 
-### **Readings Tab**
-- View all recorded meter readings and calculated bills
-- See breakdown of all charge components
-- Edit or delete existing readings
-- Add new meter readings
+### Step 2 — Log Usage
+Go to the **Log Usage** tab. Pick an appliance, enter how many hours it was used today and how many units are running. The app instantly computes the kWh and cost.
 
-### **Projection Tab**
-- Project bills for the next 3, 6, 12, or 24 months
-- View projected consumption trends
-- Plan your electricity budget
+### Step 3 — View Your Bill
+The **Dashboard** shows:
+- Today's running cost
+- Current billing cycle total with projected end-of-month bill
+- Custom date range summary
+- Per-appliance cost breakdown with percentage share
+- Daily kWh trend chart
 
-### **Reference Tab**
-- Complete guide to Meralco bill components
-- Step-by-step calculation explanation
-- Real examples with Philippine Peso amounts
-- Energy-saving tips
-- FAQ section
+### Step 4 — Settings
+Click **Settings** (gear icon) to:
+- Set your Meralco rate per kWh (default: ₱12.50)
+- Set your billing cycle start day (e.g. day 1 for monthly)
+- Set your household name
 
 ---
 
 ## 🔌 REST API Reference
 
-| Method | Endpoint               | Description                           |
-|--------|------------------------|---------------------------------------|
-| GET    | `/api/readings`        | Get all meter readings (newest first) |
-| POST   | `/api/readings`        | Add a new reading                     |
-| PUT    | `/api/readings/{id}`   | Update a reading                      |
-| DELETE | `/api/readings/{id}`   | Delete a reading                      |
-| GET    | `/api/readings/{id}`   | Get a specific reading                |
-| GET    | `/api/project?months=6`| Project bills for N months            |
-| GET    | `/api/stats`           | Get dashboard statistics              |
+### Settings
+| Method | Endpoint        | Description              |
+|--------|-----------------|--------------------------|
+| GET    | `/api/settings` | Get current settings     |
+| PUT    | `/api/settings` | Update rate / cycle day  |
 
-### Sample POST/PUT Request Body
+### Appliances
+| Method | Endpoint              | Description           |
+|--------|-----------------------|-----------------------|
+| GET    | `/api/appliances`     | List all appliances   |
+| POST   | `/api/appliances`     | Add custom appliance  |
+| PUT    | `/api/appliances/{id}`| Update appliance      |
+| DELETE | `/api/appliances/{id}`| Delete appliance      |
+
+### Usage Logs
+| Method | Endpoint       | Description                        |
+|--------|----------------|------------------------------------|
+| GET    | `/api/logs`    | Get logs for a date (`?date=`)     |
+| POST   | `/api/logs`    | Add a usage log entry              |
+| DELETE | `/api/logs/{id}`| Delete a log entry                |
+
+### Billing Summaries
+| Method | Endpoint               | Description                              |
+|--------|------------------------|------------------------------------------|
+| GET    | `/api/summary/daily`   | Summary for a specific day (`?date=`)    |
+| GET    | `/api/summary/range`   | Summary for a date range (`?start=&end=`)|
+| GET    | `/api/summary/cycle`   | Current billing cycle + projection       |
+
+### Sample POST — Add Usage Log
 ```json
 {
-  "readingDate": "2026-05-12",
-  "currentMeterReading": 1250,
-  "previousMeterReading": 1000,
-  "generationChargePerKwh": 8.5420,
-  "distributionChargePerKwh": 1.2893,
-  "transmissionChargePerKwh": 0.8523,
-  "systemLossChargePerKwh": 0.5814,
-  "taxesAndUniversalChargeRate": 0.12,
-  "notes": "Summer, AC running"
+  "applianceId": 3,
+  "usageDate": "2026-05-13",
+  "hoursUsed": 8,
+  "quantity": 1,
+  "notes": "Aircon on all night"
 }
 ```
 
-**Calculated from above:**
-- Consumption: 250 kWh (1250 - 1000)
-- Base Cost: ₱2,841.25
-- Taxes: ₱340.95
-- **Total Bill: ₱3,182.20**
-
----
-
-## 📊 How Bill Projection Works
-
-The app uses **linear regression** on your historical consumption data to project future bills:
-
-1. **Collects** all past meter readings and calculates consumption trends
-2. **Analyzes** the consumption pattern (increasing, decreasing, or stable)
-3. **Projects** future consumption using linear regression formula
-4. **Calculates** future bills using Meralco's methodology with current rates
-
-**Requirements:**
-- At least **2 readings** needed for projections
-- More historical data (3+ months) = more accurate predictions
-- The latest rates are used for all future projections
-
----
-
-## 🔧 Default Meralco Rates (May 2026)
-
-These rates are automatically applied when adding readings (can be customized per reading):
-
-| Component | Rate | Purpose |
-|-----------|------|---------|
-| **Generation** | ₱8.5420/kWh | Power production cost (~68% of bill) |
-| **Distribution** | ₱1.2893/kWh | Meralco delivery fee |
-| **Transmission** | ₱0.8523/kWh | NGCP high-voltage grid |
-| **System Loss** | ₱0.5814/kWh | Electricity lost in distribution |
-| **Tax Rate** | 12% | VAT + Universal Charges |
-
-**⚠️ Note:** Meralco updates rates monthly. Check [www.meralco.com.ph](https://www.meralco.com.ph) for current rates and update the form defaults accordingly.
-
----
-
-## 📖 Documentation
-
-Comprehensive guides are included in the project:
-
-1. **[USER_GUIDE.md](USER_GUIDE.md)** - How to use the app (quick reference)
-2. **[MERALCO_BILL_COMPUTATION_GUIDE.md](MERALCO_BILL_COMPUTATION_GUIDE.md)** - Complete billing explanation
-3. **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Technical implementation details
-
----
-
-## 💡 How to Use
-
-### **Step 1: Add a Reading**
-1. Go to **Readings** tab
-2. Click **"+ Add Reading"**
-3. Enter your meter reading date
-4. Enter **Current Meter Reading** (number on your meter)
-5. **Previous Reading** auto-fills from your last entry
-6. System calculates consumption automatically
-7. Click **"Save Reading"**
-
-### **Step 2: View Your Bill**
-- See the detailed breakdown in the Readings table
-- Each component charge is shown separately
-- Total bill is calculated using Meralco's formula
-
-### **Step 3: Analyze Trends**
-- Go to **Dashboard** to see charts
-- View your consumption pattern over time
-- Check average, highest, and lowest bills
-
-### **Step 4: Plan Ahead**
-- Go to **Projection** tab
-- Select how many months to project
-- Click **"Run Projection"**
-- See forecast bills and trends
-
-### **Step 5: Learn More**
-- Click **Reference** tab
-- Read complete Meralco guide
-- Understand all charge components
-- Find energy-saving tips
-
----
-
-## 🌟 Example Usage
-
-**Scenario:** You want to track your June 2026 electricity bill
-
-1. **Add Reading:**
-   - Date: June 1, 2026
-   - Current Meter: 1,250 kWh
-   - Previous Meter: 1,000 kWh (auto-filled)
-   - Notes: "Peak summer, AC running"
-   - Click Save
-
-2. **System Calculates:**
-   - Consumption: 250 kWh
-   - Generation: 250 × ₱8.54 = ₱2,135.00
-   - Distribution: 250 × ₱1.29 = ₱322.50
-   - Transmission: 250 × ₱0.85 = ₱212.50
-   - System Loss: 250 × ₱0.58 = ₱145.00
-   - Taxes (12%): ₱337.80
-   - **Total Bill: ₱3,152.80**
-
-3. **View in Dashboard:**
-   - Charts show your consumption trend
-   - Statistics show average bill, highest bill, etc.
-   - You can see if this month is higher/lower than average
-
-4. **Project Ahead:**
-   - Go to Projection, select 6 months
-   - Get forecast for July-December 2026
-   - Plan your budget accordingly
-
----
-
-## 🔐 Database
-
-The app uses MySQL with automatic schema creation via Hibernate:
-
-**Tables:**
-- `electricity_readings` - Stores meter readings and calculated bills
-
-**Schema managed by:**
-- Spring Data JPA with Hibernate (automatic DDL)
-- Configuration: `spring.jpa.hibernate.ddl-auto=update`
-
-No manual SQL scripts needed - the app creates tables on first run!
-
----
-
-## 📞 Support & References
-
-### **Meralco Official Resources**
-- Website: [www.meralco.com.ph](https://www.meralco.com.ph)
-- Hotline: 16211 (within Metro Manila)
-- Email: customer.service@meralco.com.ph
-
-### **In the App**
-- Click **Reference** tab for complete guide
-- See step-by-step bill calculations
-- Find energy-saving recommendations
-
----
-
-## 🚀 Deployment
-
-### **Production Build**
-```bash
-mvn clean package
-java -jar target/bill-projection-1.0.0.jar
-```
-
-### **Environment Variables** (optional)
-```bash
-java -Dspring.datasource.username=your_user \
-     -Dspring.datasource.password=your_password \
-     -jar bill-projection-1.0.0.jar
+### Sample POST — Add Custom Appliance
+```json
+{
+  "name": "Exhaust Fan",
+  "watts": 25,
+  "icon": "💨",
+  "category": "Cooling"
+}
 ```
 
 ---
 
-## 📝 License
+## 📊 Bill Computation Formula
 
-This project is for tracking electricity bills based on Meralco (Manila Electric Company) rates for the Philippines.
+```
+kWh = (Watts × Hours × Quantity) / 1000
+Cost = kWh × Rate per kWh
+
+Example:
+  1HP Aircon = 746W
+  Used 8 hours, 1 unit
+  kWh = (746 × 8 × 1) / 1000 = 5.968 kWh
+  Cost = 5.968 × ₱12.50 = ₱74.60/day
+```
 
 ---
 
-## ✨ Version History
+## 🏠 Built-in Preset Appliances
 
-- **v2.0** (May 2026) - Meralco accurate computation with meter readings
-- **v1.0** (Initial) - Simple bill tracking
+| Icon | Appliance                  | Watts   | Category      |
+|------|----------------------------|---------|---------------|
+| ❄️   | Air Conditioner (1HP)      | 746 W   | Cooling       |
+| ❄️   | Air Conditioner (1.5HP)    | 1119 W  | Cooling       |
+| ❄️   | Air Conditioner (2HP)      | 1492 W  | Cooling       |
+| 🌀   | Electric Fan               | 60 W    | Cooling       |
+| 🌀   | Ceiling Fan                | 75 W    | Cooling       |
+| 🧊   | Refrigerator (small)       | 100 W   | Kitchen       |
+| 🧊   | Refrigerator (medium)      | 150 W   | Kitchen       |
+| 🧊   | Refrigerator (large)       | 200 W   | Kitchen       |
+| 🍚   | Rice Cooker                | 700 W   | Kitchen       |
+| 📦   | Microwave Oven             | 1200 W  | Kitchen       |
+| 🔥   | Electric Stove             | 2000 W  | Kitchen       |
+| 🚿   | Water Heater               | 1500 W  | Bathroom      |
+| 🫧   | Washing Machine            | 500 W   | Laundry       |
+| 🫧   | Clothes Dryer              | 2000 W  | Laundry       |
+| 📺   | LED TV (32")               | 50 W    | Entertainment |
+| 📺   | LED TV (55")               | 100 W   | Entertainment |
+| 💻   | Desktop Computer           | 200 W   | Entertainment |
+| 💻   | Laptop                     | 65 W    | Entertainment |
+| 🎮   | Game Console               | 150 W   | Entertainment |
+| 💡   | LED Bulb (9W)              | 9 W     | Lighting      |
+| 💡   | Fluorescent Light          | 40 W    | Lighting      |
+| 👔   | Electric Iron              | 1000 W  | Others        |
+| 💧   | Water Pump                 | 370 W   | Others        |
+| 📷   | CCTV Camera                | 5 W     | Others        |
+| 📡   | WiFi Router                | 10 W    | Others        |
 
 ---
 
-*Watts Ahead - Smart Electricity Tracking for the Philippines* ⚡
+## 💡 Default Settings
+
+| Setting              | Default     |
+|----------------------|-------------|
+| Rate per kWh         | ₱12.50      |
+| Billing Cycle Start  | Day 1       |
+| Household Name       | My Household|
+
+> Change these anytime in the Settings panel inside the app.
