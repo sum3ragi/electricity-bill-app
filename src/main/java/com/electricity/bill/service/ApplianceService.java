@@ -65,7 +65,9 @@ public class ApplianceService {
                 preset("CCTV Camera",              5.0,  "📷",  "Others"),
                 preset("WiFi Router",              10.0, "📡",  "Others")
             );
-            applianceRepo.saveAll(presets);
+            if (presets != null) {
+                applianceRepo.saveAll(presets);
+            }
         }
     }
 
@@ -89,17 +91,25 @@ public class ApplianceService {
     }
 
     public void deleteAppliance(Long id) {
-        applianceRepo.deleteById(id);
+        if (id != null) {
+            applianceRepo.deleteById(id);
+        }
     }
 
     public Optional<Appliance> getApplianceById(Long id) {
-        return applianceRepo.findById(id);
+        if (id != null) {
+            return applianceRepo.findById(id);
+        }
+        return Optional.empty();
     }
 
     // ─── USAGE LOGS ───────────────────────────────────────────────────────────
 
     public UsageLog saveUsageLog(UsageLog log) {
-        return usageLogRepo.save(log);
+        if (log != null) {
+            return usageLogRepo.save(log);
+        }
+        return null;
     }
 
     public List<UsageLog> getLogsForDate(LocalDate date) {
@@ -111,7 +121,9 @@ public class ApplianceService {
     }
 
     public void deleteUsageLog(Long id) {
-        usageLogRepo.deleteById(id);
+        if (id != null) {
+            usageLogRepo.deleteById(id);
+        }
     }
 
     // ─── BILLING SUMMARY ──────────────────────────────────────────────────────
@@ -159,7 +171,9 @@ public class ApplianceService {
     }
 
     private Map<String, Object> buildSummary(List<UsageLog> logs, double rate, String from, String to) {
-        double totalKwh = logs.stream().mapToDouble(UsageLog::getKwhConsumed).sum();
+        double totalKwh = logs.stream()
+            .mapToDouble(log -> log.getKwhConsumed() != null ? log.getKwhConsumed() : 0.0)
+            .sum();
         double totalCost = totalKwh * rate;
 
         // Per-appliance breakdown
@@ -168,10 +182,16 @@ public class ApplianceService {
         Map<String, String> applianceIcons = new LinkedHashMap<>();
 
         for (UsageLog log : logs) {
-            String key = log.getAppliance().getName();
-            applianceKwh.merge(key, log.getKwhConsumed(), Double::sum);
-            applianceCost.merge(key, log.getCost(rate), Double::sum);
-            applianceIcons.putIfAbsent(key, log.getAppliance().getIcon());
+            Appliance appliance = log.getAppliance();
+            if (appliance != null) {
+                String key = appliance.getName();
+                Double kwh = log.getKwhConsumed();
+                if (kwh != null) {
+                    applianceKwh.merge(key, kwh, (a, b) -> (a != null ? a : 0.0) + (b != null ? b : 0.0));
+                    applianceCost.merge(key, log.getCost(rate), (a, b) -> (a != null ? a : 0.0) + (b != null ? b : 0.0));
+                }
+                applianceIcons.putIfAbsent(key, appliance.getIcon());
+            }
         }
 
         // Sort by cost desc
@@ -180,10 +200,11 @@ public class ApplianceService {
             .map(e -> {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("name", e.getKey());
-                item.put("icon", applianceIcons.get(e.getKey()));
-                item.put("kwh", round(applianceKwh.get(e.getKey())));
-                item.put("cost", round(e.getValue()));
-                item.put("pct", totalKwh > 0 ? round(applianceKwh.get(e.getKey()) / totalKwh * 100) : 0);
+                item.put("icon", applianceIcons.getOrDefault(e.getKey(), ""));
+                Double kwhValue = applianceKwh.get(e.getKey());
+                item.put("kwh", kwhValue != null ? round(kwhValue) : 0.0);
+                item.put("cost", round(e.getValue() != null ? e.getValue() : 0.0));
+                item.put("pct", totalKwh > 0 && kwhValue != null ? round(kwhValue / totalKwh * 100) : 0.0);
                 return item;
             }).collect(Collectors.toList());
 
@@ -191,8 +212,12 @@ public class ApplianceService {
         Map<String, Double> dailyKwh = new TreeMap<>();
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM d");
         for (UsageLog log : logs) {
-            String day = log.getUsageDate().format(fmt);
-            dailyKwh.merge(day, log.getKwhConsumed(), Double::sum);
+            LocalDate usageDate = log.getUsageDate();
+            Double kwh = log.getKwhConsumed();
+            if (usageDate != null && kwh != null) {
+                String day = usageDate.format(fmt);
+                dailyKwh.merge(day, kwh, (a, b) -> a + b);
+            }
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -203,7 +228,7 @@ public class ApplianceService {
         result.put("ratePerKwh", rate);
         result.put("breakdown", breakdown);
         result.put("chartLabels", new ArrayList<>(dailyKwh.keySet()));
-        result.put("chartKwh", new ArrayList<>(dailyKwh.values()).stream().map(this::round).collect(Collectors.toList()));
+        result.put("chartKwh", new ArrayList<>(dailyKwh.values()).stream().map(v -> v != null ? round(v) : 0.0).collect(Collectors.toList()));
         result.put("logCount", logs.size());
         return result;
     }
